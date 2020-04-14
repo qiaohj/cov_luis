@@ -39,7 +39,11 @@ ggplot(df)+geom_boxplot(aes(x=factor(BCG_TF_elder), y=covid19_confirmed))
 #while, is it true?
 #Let's look at the GDP in different groups
 df$GDP_2018<-as.numeric(df$GDP_2018)
+df$population_density_2018<-as.numeric(df$population_density_2018)
+
 df_com<-df[which(!is.na(df$GDP_2018)),]
+df_com<-df_com[which(!is.na(df_com$population_density_2018)),]
+
 ggplot(df_com)+geom_boxplot(aes(x=factor(BCG_TF_elder), y=GDP_2018))
 t.test(df_com$GDP_2018 ~ df_com$BCG_TF_elder, paired = F, na.action = na.pass, alternative="greater")
 #The figure shows that the groups without BCG has a higher GDP(richer than the group without BCG)
@@ -51,6 +55,8 @@ cor(df_com$GDP_2018, df_com$death_per_million_elder)
 ggplot(df_com)+geom_point(aes(x=GDP_2018, y=death_per_million_elder))
 
 #here I'd like to use a regression tree to find the 3rd factor
+#From all the regression tree below, none of the BCG is an important factor, but GDP, population or HDI is important in some case.
+
 library(rsample)     # data splitting 
 library(dplyr)       # data wrangling
 library(rpart)       # performing regression trees
@@ -60,8 +66,11 @@ library(caret)       # bagging
 
 
 
-set.seed(123)
-df_model<-df_com[, c("death_per_million_elder", "GDP_2018", "BCG_policy", "income_level")]
+
+
+df_model<-df_com[, c("death_per_million_elder", "BCG_policy", "GDP_2018", 
+                     "population_density_2018", "population_2018", "urban_percentage_2018", 
+                     "income_level", "HDI_2018")]
 ames_split <- initial_split(df_model)
 ames_train <- training(ames_split)
 ames_test  <- testing(ames_split)
@@ -75,6 +84,30 @@ plotcp(m1)
 
 m2 <- rpart(
   formula = death_per_million_elder ~ .,
+  data    = ames_train,
+  method  = "anova", 
+  control = list(cp = 0, xval = 10)
+)
+
+plotcp(m2)
+abline(v = 12, lty = "dashed")
+
+df_model<-df_com[, c("death_per_million", "BCG_policy", "GDP_2018", 
+                     "population_density_2018", "population_2018", "urban_percentage_2018", 
+                     "income_level", "HDI_2018")]
+ames_split <- initial_split(df_model)
+ames_train <- training(ames_split)
+ames_test  <- testing(ames_split)
+m1 <- rpart(
+  formula = death_per_million ~ .,
+  data    = ames_train,
+  method  = "anova"
+)
+rpart.plot(m1)
+plotcp(m1)
+
+m2 <- rpart(
+  formula = death_per_million ~ .,
   data    = ames_train,
   method  = "anova", 
   control = list(cp = 0, xval = 10)
